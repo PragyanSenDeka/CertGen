@@ -1,0 +1,1271 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>Certificate Generator</title>
+<link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+
+  :root {
+    --bg: #0f0f0f;
+    --surface: #181818;
+    --surface2: #222222;
+    --border: #2e2e2e;
+    --accent: #d4a843;
+    --accent2: #e8c97a;
+    --text: #f0ece4;
+    --muted: #888;
+    --success: #4caf82;
+    --radius: 10px;
+  }
+
+  html, body { height: 100%; }
+
+  body {
+    background: var(--bg);
+    color: var(--text);
+    font-family: 'DM Sans', sans-serif;
+    font-size: 14px;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+  }
+
+  /* ── HEADER ── */
+  header {
+    border-bottom: 1px solid var(--border);
+    padding: 16px 24px;
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    background: var(--surface);
+    flex-shrink: 0;
+  }
+  header .logo-icon {
+    width: 34px; height: 34px;
+    background: var(--accent);
+    border-radius: 8px;
+    display: flex; align-items: center; justify-content: center;
+    font-size: 17px; flex-shrink: 0;
+  }
+  header h1 {
+    font-family: 'DM Serif Display', serif;
+    font-size: 20px; letter-spacing: -0.3px; color: var(--text);
+  }
+  header .header-badge {
+    margin-left: auto; font-size: 11px; color: var(--muted);
+    background: var(--surface2); border: 1px solid var(--border);
+    padding: 4px 10px; border-radius: 20px; white-space: nowrap;
+  }
+
+  /* ── DESKTOP LAYOUT ── */
+  .app {
+    display: grid;
+    grid-template-columns: 400px 1fr;
+    flex: 1; min-height: 0; overflow: hidden;
+  }
+
+  /* ── SIDEBAR ── */
+  .sidebar {
+    background: var(--surface);
+    border-right: 1px solid var(--border);
+    overflow-y: auto; overflow-x: hidden;
+    padding: 20px 16px 80px 16px;
+    display: flex; flex-direction: column; gap: 16px;
+    height: 100%;
+  }
+  .sidebar::-webkit-scrollbar { width: 4px; }
+  .sidebar::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+
+  /* ── PANELS ── */
+  .panel {
+    background: var(--surface2);
+    border: 1px solid var(--border);
+    border-radius: var(--radius);
+    overflow: hidden; flex-shrink: 0;
+  }
+  .panel-header {
+    padding: 11px 14px;
+    border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 8px;
+    font-weight: 600; font-size: 11px;
+    letter-spacing: 0.8px; text-transform: uppercase;
+    color: var(--muted); cursor: default;
+  }
+  .panel-header .dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--accent); flex-shrink: 0;
+  }
+  .panel-header .chevron {
+    margin-left: auto; font-size: 13px; color: var(--muted);
+    transition: transform 0.25s; display: none;
+  }
+  .panel.collapsed .panel-header .chevron { transform: rotate(-90deg); }
+  .panel.collapsed .panel-body { display: none; }
+  .panel-body { padding: 14px; display: flex; flex-direction: column; gap: 12px; }
+
+  /* ── UPLOAD ZONES ── */
+  .upload-zone {
+    border: 1.5px dashed var(--border); border-radius: 8px;
+    padding: 16px 12px; text-align: center; cursor: pointer;
+    transition: border-color 0.2s, background 0.2s;
+    position: relative; min-height: 80px;
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+  }
+  .upload-zone:hover, .upload-zone.drag { border-color: var(--accent); background: rgba(212,168,67,0.04); }
+  .upload-zone input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+  .upload-zone .uz-icon { font-size: 22px; margin-bottom: 5px; }
+  .upload-zone .uz-label { font-size: 13px; font-weight: 500; color: var(--text); }
+  .upload-zone .uz-sub { font-size: 11px; color: var(--muted); margin-top: 3px; }
+  .upload-zone.done { border-color: var(--success); border-style: solid; }
+  @media (hover: none) { .upload-zone .uz-sub { display: none; } }
+
+  /* ── FORM ELEMENTS ── */
+  label.field-label {
+    display: block; font-size: 11px; font-weight: 600;
+    letter-spacing: 0.5px; text-transform: uppercase;
+    color: var(--muted); margin-bottom: 5px;
+  }
+  input[type=text], input[type=number], select {
+    width: 100%; background: var(--bg); border: 1px solid var(--border);
+    border-radius: 7px; color: var(--text);
+    font-family: 'DM Sans', sans-serif; font-size: 14px;
+    padding: 10px 12px; outline: none; transition: border-color 0.2s;
+    -webkit-appearance: none;
+  }
+  input[type=text]:focus, input[type=number]:focus, select:focus { border-color: var(--accent); }
+  select option { background: var(--surface2); }
+  .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
+
+  /* ── COLOR ── */
+  .color-row { display: flex; align-items: center; gap: 10px; }
+  .color-row input[type=color] {
+    width: 42px; height: 42px; border: 1px solid var(--border);
+    border-radius: 6px; padding: 2px; background: var(--bg);
+    cursor: pointer; flex-shrink: 0;
+  }
+  .color-row input[type=text] { flex: 1; }
+
+  /* ── CORNER BUTTONS ── */
+  .corner-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 6px; }
+  .corner-btn {
+    padding: 10px 6px; border: 1px solid var(--border); border-radius: 7px;
+    background: var(--bg); color: var(--muted); font-size: 12px;
+    font-family: 'DM Sans', sans-serif; cursor: pointer; text-align: center;
+    transition: all 0.15s; -webkit-tap-highlight-color: transparent;
+  }
+  .corner-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .corner-btn.active { border-color: var(--accent); background: rgba(212,168,67,0.12); color: var(--accent); font-weight: 600; }
+
+  /* ── FONT UPLOAD ── */
+  .font-upload-zone {
+    border: 1.5px dashed var(--border); border-radius: 7px;
+    padding: 11px 12px; display: flex; align-items: center; gap: 10px;
+    cursor: pointer; position: relative; transition: border-color 0.2s;
+    font-size: 13px; color: var(--muted);
+  }
+  .font-upload-zone:hover { border-color: var(--accent); color: var(--accent); }
+  .font-upload-zone input[type=file] { position: absolute; inset: 0; opacity: 0; cursor: pointer; width: 100%; height: 100%; }
+  .font-upload-zone .fuz-name { flex: 1; font-size: 13px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+  /* ── SLIDERS ── */
+  .slider-field { display: flex; flex-direction: column; gap: 5px; }
+  .slider-field .field-label { margin-bottom: 0; }
+  .slider-row { display: flex; align-items: center; gap: 8px; }
+  .slider-row input[type=range] {
+    flex: 1; -webkit-appearance: none; appearance: none;
+    height: 4px; border-radius: 4px; background: var(--border);
+    outline: none; cursor: pointer; padding: 0; border: none;
+  }
+  .slider-row input[type=range]::-webkit-slider-thumb {
+    -webkit-appearance: none; width: 20px; height: 20px;
+    border-radius: 50%; background: var(--accent);
+    cursor: pointer; border: 2px solid var(--bg); box-shadow: 0 0 0 1px var(--accent);
+  }
+  .slider-row input[type=range]::-moz-range-thumb {
+    width: 20px; height: 20px; border-radius: 50%;
+    background: var(--accent); border: 2px solid var(--bg);
+  }
+  .slider-row input[type=number] { width: 68px; flex-shrink: 0; text-align: center; }
+
+  /* ── NUDGE CONTROLS (arrows only, no slider) ── */
+  .nudge-2d { display: flex; flex-direction: column; gap: 6px; }
+  .nudge-axis-row { display: flex; align-items: center; gap: 8px; }
+  .nudge-axis-label {
+    font-size: 10px; font-weight: 700; letter-spacing: 0.8px;
+    text-transform: uppercase; color: var(--muted); width: 14px; flex-shrink: 0;
+  }
+  .nudge-axis-row .nudge-spacer { flex: 1; }
+  .nudge-axis-row input[type=number] { width: 62px; flex-shrink: 0; text-align: center; }
+  .nudge-btn {
+    width: 36px; height: 36px; border-radius: 7px;
+    border: 1px solid var(--border); background: var(--bg);
+    color: var(--text); font-size: 15px; cursor: pointer;
+    display: flex; align-items: center; justify-content: center;
+    flex-shrink: 0; transition: border-color 0.15s, background 0.15s;
+    user-select: none; -webkit-tap-highlight-color: transparent;
+  }
+  .nudge-btn:hover { border-color: var(--accent); color: var(--accent); background: rgba(212,168,67,0.08); }
+  .nudge-btn:active { transform: scale(0.9); }
+
+  /* ── FORMAT TOGGLE ── */
+  .format-toggle { display: flex; gap: 6px; }
+  .fmt-btn {
+    flex: 1; padding: 10px 6px; border: 1px solid var(--border);
+    border-radius: 7px; background: var(--bg); color: var(--muted);
+    font-size: 12px; font-family: 'DM Sans', sans-serif; font-weight: 600;
+    letter-spacing: 0.5px; cursor: pointer; text-align: center;
+    transition: all 0.15s; -webkit-tap-highlight-color: transparent;
+  }
+  .fmt-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .fmt-btn.active { border-color: var(--accent); background: rgba(212,168,67,0.12); color: var(--accent); }
+
+  /* ── GENERATE BUTTON ── */
+  .generate-btn {
+    background: var(--accent); color: #111; border: none; border-radius: 9px;
+    padding: 14px 20px; font-family: 'DM Sans', sans-serif;
+    font-size: 15px; font-weight: 700; cursor: pointer; width: 100%;
+    letter-spacing: 0.3px; transition: background 0.2s, transform 0.1s;
+    display: flex; align-items: center; justify-content: center; gap: 8px;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .generate-btn:hover { background: var(--accent2); }
+  .generate-btn:active { transform: scale(0.98); }
+  .generate-btn:disabled { background: var(--border); color: var(--muted); cursor: not-allowed; transform: none; }
+
+  /* ── PROGRESS ── */
+  .progress-wrap { display: none; flex-direction: column; gap: 8px; }
+  .progress-wrap.visible { display: flex; }
+  .progress-bar-bg { background: var(--border); border-radius: 20px; height: 6px; overflow: hidden; }
+  .progress-bar-fill { height: 100%; background: var(--accent); border-radius: 20px; width: 0%; transition: width 0.2s; }
+  .progress-label { font-size: 12px; color: var(--muted); text-align: center; }
+
+  /* ── MESSAGES ── */
+  .msg { font-size: 13px; padding: 10px 12px; border-radius: 7px; display: none; line-height: 1.5; }
+  .msg.error   { background: rgba(224,85,85,0.1);  border: 1px solid rgba(224,85,85,0.3);  color: #f08080; display: block; }
+  .msg.success { background: rgba(76,175,130,0.1); border: 1px solid rgba(76,175,130,0.3); color: var(--success); display: block; }
+
+  /* ── STATS BAR ── */
+  .stats-bar { display: flex; gap: 6px; flex-wrap: wrap; }
+  .stat-chip {
+    background: var(--bg); border: 1px solid var(--border);
+    border-radius: 6px; padding: 5px 10px; font-size: 12px;
+    color: var(--muted); display: flex; align-items: center; gap: 5px;
+  }
+  .stat-chip strong { color: var(--text); }
+
+  /* ── COLUMN PICKER MODAL ── */
+  .modal-backdrop {
+    display: none; position: fixed; inset: 0; z-index: 8888;
+    background: rgba(0,0,0,0.75);
+    align-items: center; justify-content: center; padding: 20px;
+  }
+  .modal-backdrop.open { display: flex; }
+  .modal {
+    background: var(--surface); border: 1px solid var(--border);
+    border-radius: 12px; width: 100%; max-width: 480px;
+    display: flex; flex-direction: column; gap: 0;
+    overflow: hidden; box-shadow: 0 16px 64px rgba(0,0,0,0.7);
+  }
+  .modal-header {
+    padding: 16px 18px; border-bottom: 1px solid var(--border);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .modal-header h3 {
+    font-family: 'DM Serif Display', serif; font-size: 17px;
+    font-weight: 400; color: var(--text); flex: 1;
+  }
+  .modal-header .modal-sub {
+    font-size: 12px; color: var(--muted); margin-top: 2px;
+  }
+  .modal-body { padding: 16px 18px; display: flex; flex-direction: column; gap: 10px; max-height: 55vh; overflow-y: auto; }
+  .modal-footer { padding: 14px 18px; border-top: 1px solid var(--border); display: flex; gap: 8px; justify-content: flex-end; }
+
+  /* column checkbox rows */
+  .col-check-row {
+    display: flex; align-items: flex-start; gap: 10px;
+    padding: 10px 12px; border-radius: 8px; cursor: pointer;
+    border: 1px solid var(--border); background: var(--surface2);
+    transition: border-color 0.15s;
+  }
+  .col-check-row:hover { border-color: var(--accent); }
+  .col-check-row.selected { border-color: var(--accent); background: rgba(212,168,67,0.07); }
+  .col-check-row input[type=checkbox] { margin-top: 2px; accent-color: var(--accent); width: 15px; height: 15px; flex-shrink: 0; cursor: pointer; }
+  .col-check-info { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+  .col-check-name { font-size: 13px; font-weight: 600; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .col-check-sample { font-size: 11px; color: var(--muted); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .col-check-badge {
+    margin-left: auto; flex-shrink: 0; font-size: 10px; font-weight: 700;
+    letter-spacing: 0.5px; padding: 2px 7px; border-radius: 10px;
+    background: rgba(212,168,67,0.15); color: var(--accent); border: 1px solid rgba(212,168,67,0.3);
+  }
+
+  .modal-btn {
+    padding: 9px 18px; border-radius: 8px; font-family: 'DM Sans', sans-serif;
+    font-size: 13px; font-weight: 600; cursor: pointer; border: 1px solid var(--border);
+    transition: all 0.15s;
+  }
+  .modal-btn.primary { background: var(--accent); color: #111; border-color: var(--accent); }
+  .modal-btn.primary:hover { background: var(--accent2); }
+  .modal-btn.secondary { background: var(--surface2); color: var(--muted); }
+  .modal-btn.secondary:hover { border-color: var(--accent); color: var(--accent); }
+
+  .modal-notice {
+    font-size: 12px; color: var(--muted); padding: 8px 10px;
+    background: rgba(212,168,67,0.06); border: 1px solid rgba(212,168,67,0.15);
+    border-radius: 7px; line-height: 1.5;
+  }
+
+  /* ── DESKTOP PREVIEW AREA ── */
+  .preview-area {
+    background: var(--bg); overflow: hidden;
+    display: flex; flex-direction: column; min-height: 0;
+  }
+  .preview-toolbar {
+    padding: 12px 20px; border-bottom: 1px solid var(--border);
+    background: var(--surface); display: flex; align-items: center;
+    gap: 12px; flex-shrink: 0;
+  }
+  .preview-toolbar h2 { font-family: 'DM Serif Display', serif; font-size: 15px; font-weight: 400; }
+  .preview-toolbar .pill {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 20px; padding: 4px 11px; font-size: 11px; color: var(--muted);
+  }
+  .preview-nav { margin-left: auto; display: flex; align-items: center; gap: 8px; }
+  .nav-btn {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 6px; color: var(--text); padding: 6px 14px;
+    font-size: 13px; font-family: 'DM Sans', sans-serif;
+    cursor: pointer; transition: border-color 0.15s;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .nav-btn:hover { border-color: var(--accent); color: var(--accent); }
+  .nav-btn:disabled { opacity: 0.4; cursor: not-allowed; }
+  .nav-count { font-size: 12px; color: var(--muted); min-width: 56px; text-align: center; }
+  .canvas-wrap {
+    flex: 1; overflow: auto; display: flex;
+    align-items: center; justify-content: center;
+    padding: 28px; min-height: 0;
+    background:
+      radial-gradient(circle at 20% 80%, rgba(212,168,67,0.03) 0%, transparent 50%),
+      repeating-linear-gradient(0deg, transparent, transparent 29px, rgba(255,255,255,0.02) 30px),
+      repeating-linear-gradient(90deg, transparent, transparent 29px, rgba(255,255,255,0.02) 30px);
+  }
+  canvas#previewCanvas {
+    max-width: 100%; max-height: 100%; object-fit: contain;
+    border-radius: 4px; box-shadow: 0 8px 40px rgba(0,0,0,0.6);
+  }
+  .empty-preview { text-align: center; color: var(--muted); }
+  .empty-preview .ep-icon { font-size: 44px; margin-bottom: 12px; opacity: 0.4; }
+  .empty-preview p { font-size: 14px; }
+  .empty-preview small { font-size: 12px; opacity: 0.6; }
+
+  /* ── MOBILE PREVIEW STRIP ── */
+  .mobile-preview-strip { display: none; }
+  .mobile-thumb-wrap {
+    width: 100%; background: var(--surface);
+    border-bottom: 1px solid var(--border);
+    padding: 12px; display: flex; align-items: center; gap: 12px;
+  }
+  canvas#mobileThumbnail {
+    flex-shrink: 0; width: 96px; height: 68px;
+    border-radius: 6px; background: var(--surface2);
+    border: 1px solid var(--border); cursor: pointer;
+    object-fit: contain;
+  }
+  .mobile-thumb-meta { flex: 1; display: flex; flex-direction: column; gap: 4px; }
+  .mobile-thumb-meta .thumb-name {
+    font-size: 14px; font-weight: 600; color: var(--text);
+    white-space: nowrap; overflow: hidden; text-overflow: ellipsis;
+  }
+  .mobile-thumb-meta .thumb-count { font-size: 12px; color: var(--muted); }
+  .mobile-thumb-meta .thumb-tap { font-size: 11px; color: var(--accent); margin-top: 2px; }
+  .mobile-thumb-nav { display: flex; gap: 6px; flex-shrink: 0; }
+  .mobile-thumb-nav .nav-btn { padding: 8px 12px; font-size: 14px; }
+
+  /* ── FULLSCREEN LIGHTBOX ── */
+  .lightbox {
+    display: none; position: fixed; inset: 0; z-index: 9999;
+    background: rgba(0,0,0,0.92);
+    flex-direction: column; align-items: center; justify-content: center;
+    padding: 16px;
+  }
+  .lightbox.open { display: flex; }
+  .lightbox-inner {
+    position: relative; width: 100%; max-width: 900px;
+    display: flex; flex-direction: column; gap: 14px;
+  }
+  .lightbox canvas { width: 100%; height: auto; border-radius: 6px; box-shadow: 0 8px 48px rgba(0,0,0,0.8); display: block; }
+  .lightbox-toolbar { display: flex; align-items: center; justify-content: space-between; gap: 10px; }
+  .lightbox-nav { display: flex; align-items: center; gap: 8px; }
+  .lightbox-count { font-size: 13px; color: var(--muted); }
+  .lightbox-close {
+    background: var(--surface2); border: 1px solid var(--border);
+    border-radius: 8px; color: var(--text); font-size: 14px;
+    font-family: 'DM Sans', sans-serif; padding: 8px 18px; cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+  }
+  .lightbox-close:hover { border-color: var(--accent); color: var(--accent); }
+
+  /* ── MISC ── */
+  ::-webkit-scrollbar { width: 5px; height: 5px; }
+  ::-webkit-scrollbar-track { background: transparent; }
+  ::-webkit-scrollbar-thumb { background: var(--border); border-radius: 4px; }
+  .section-label { font-size: 10px; font-weight: 700; letter-spacing: 1px; text-transform: uppercase; color: var(--muted); margin-bottom: 2px; }
+  .live-dot {
+    display: inline-block; width: 6px; height: 6px; border-radius: 50%;
+    background: var(--success); margin-left: 6px; vertical-align: middle;
+    animation: pulse 1.8s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; transform: scale(1); }
+    50%       { opacity: 0.4; transform: scale(0.7); }
+  }
+  /* inline value label (mobile slider readout) */
+  .slider-val-label { font-size: 12px; color: var(--accent); min-width: 38px; text-align: right; font-variant-numeric: tabular-nums; }
+
+  /* ═══════════════════════════════════════
+     MOBILE  ≤ 700px
+  ═══════════════════════════════════════ */
+  @media (max-width: 700px) {
+    .app { display: block; overflow-y: auto; overflow-x: hidden; height: auto; flex: 1; }
+    .sidebar { height: auto; overflow: visible; border-right: none; padding: 12px 12px 32px 12px; gap: 12px; }
+    .panel-header { cursor: pointer; }
+    .panel-header .chevron { display: block; }
+    .preview-area { display: none; }
+    .mobile-preview-strip { display: block; }
+    header { padding: 12px 16px; }
+    header h1 { font-size: 18px; }
+    header .header-badge { display: none; }
+    /* hide number inputs beside font-size slider on mobile — value shown via label */
+    .slider-row input[type=number] { display: none; }
+  }
+
+  /* TABLET  701–1024px */
+  @media (min-width: 701px) and (max-width: 1024px) {
+    .app { grid-template-columns: 340px 1fr; }
+    .slider-row input[type=number] { width: 56px; }
+  }
+</style>
+</head>
+<body>
+
+<header>
+  
+  <div class="logo-icon">🏅</div>
+  <h1>CertGen</h1>
+  <span class="header-badge">GitHub Pages Edition</span>
+</header>
+
+<!-- ══ MOBILE PREVIEW STRIP ══ -->
+<div class="mobile-preview-strip" id="mobilePreviewStrip">
+  <div class="mobile-thumb-wrap">
+    <canvas id="mobileThumbnail" title="Tap to view fullscreen"></canvas>
+    <div class="mobile-thumb-meta">
+      <div class="thumb-name" id="mobileThumbName">No preview yet</div>
+      <div class="thumb-count" id="mobileThumbCount">Upload files to begin</div>
+      <div class="thumb-tap" id="mobileThumbTap" style="display:none">👆 Tap image to expand</div>
+    </div>
+    <div class="mobile-thumb-nav">
+      <button class="nav-btn" id="mobilePrevBtn" disabled>←</button>
+      <button class="nav-btn" id="mobileNextBtn" disabled>→</button>
+    </div>
+  </div>
+</div>
+
+<!-- ══ FULLSCREEN LIGHTBOX ══ -->
+<div class="lightbox" id="lightbox">
+  <div class="lightbox-inner">
+    <canvas id="lightboxCanvas"></canvas>
+    <div class="lightbox-toolbar">
+      <div class="lightbox-nav">
+        <button class="nav-btn" id="lbPrevBtn" disabled>← Prev</button>
+        <span class="lightbox-count" id="lbCount">— / —</span>
+        <button class="nav-btn" id="lbNextBtn" disabled>Next →</button>
+      </div>
+      <button class="lightbox-close" id="lightboxClose">✕ Close</button>
+    </div>
+  </div>
+</div>
+
+<div class="app">
+
+  <aside class="sidebar">
+
+    <!-- 1. UPLOADS -->
+    <div class="panel" id="panelUploads">
+      <div class="panel-header" data-panel="panelUploads">
+        <span class="dot"></span>Upload Files<span class="chevron">›</span>
+      </div>
+      <div class="panel-body">
+        <div>
+          <label class="field-label">CSV File (Names)</label>
+          <div class="upload-zone" id="csvZone">
+            <input type="file" id="csvFile" accept=".csv" />
+            <div class="uz-icon">📄</div>
+            <div class="uz-label">Tap to upload CSV</div>
+            <div class="uz-sub">Columns: name / names &nbsp;|&nbsp; email / emails (optional)</div>
+          </div>
+        </div>
+        <div>
+          <label class="field-label">Certificate Template (PNG/JPG)</label>
+          <div class="upload-zone" id="templateZone">
+            <input type="file" id="templateFile" accept="image/png,image/jpeg,image/jpg" />
+            <div class="uz-icon">🖼️</div>
+            <div class="uz-label">Tap to upload template</div>
+            <div class="uz-sub">PNG or JPG — becomes the certificate background</div>
+          </div>
+        </div>
+        <div id="statsBar" class="stats-bar" style="display:none"></div>
+      </div>
+    </div>
+
+    <!-- 2. NAME TEXT -->
+    <div class="panel" id="panelName">
+      <div class="panel-header" data-panel="panelName">
+        <span class="dot"></span>Name Text<span class="chevron">›</span>
+      </div>
+      <div class="panel-body">
+        <div>
+          <label class="field-label">Font</label>
+          <select id="nameFont">
+            <optgroup label="Serif">
+              <option value="serif:Georgia">Georgia</option>
+              <option value="serif:Palatino Linotype">Palatino</option>
+              <option value="serif:Times New Roman">Times New Roman</option>
+            </optgroup>
+            <optgroup label="Google Fonts">
+              <option value="gfont:DM Serif Display">DM Serif Display</option>
+            </optgroup>
+            <optgroup label="Sans-serif">
+              <option value="sans:Arial">Arial</option>
+              <option value="sans:Trebuchet MS">Trebuchet MS</option>
+              <option value="sans:Verdana">Verdana</option>
+            </optgroup>
+            <optgroup label="Script / Display">
+              <option value="cursive:Dancing Script">Dancing Script ★</option>
+              <option value="cursive:cursive">Generic Cursive</option>
+            </optgroup>
+            <option value="uploaded:__none__" id="uploadedFontOption" disabled>— Upload custom font below —</option>
+          </select>
+        </div>
+        <div>
+          <label class="field-label">Upload Custom Font (.ttf / .otf / .woff)</label>
+          <div class="font-upload-zone">
+            <span>📁</span>
+            <span class="fuz-name" id="nameFontName">No file chosen</span>
+            <input type="file" id="nameFontFile" accept=".ttf,.otf,.woff,.woff2" />
+          </div>
+        </div>
+        <div class="slider-field">
+          <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:5px">
+            <label class="field-label" style="margin-bottom:0">Font Size (px)</label>
+            <span class="slider-val-label" id="nameFontSizeVal">80</span>
+          </div>
+          <div class="slider-row">
+            <input type="range" id="nameFontSizeSlider" min="10" max="400" value="80" />
+            <input type="number" id="nameFontSize" value="80" min="10" max="400" />
+          </div>
+        </div>
+        <div>
+          <label class="field-label">Color</label>
+          <div class="color-row">
+            <input type="color" id="nameColorPicker" value="#000000" />
+            <input type="text" id="nameColorHex" value="#000000" maxlength="7" />
+          </div>
+        </div>
+        <div>
+          <label class="field-label">Position on Certificate</label>
+          <div class="nudge-2d">
+            <div class="nudge-axis-row">
+              <span class="nudge-axis-label">X</span>
+              <button class="nudge-btn" id="nameXMinus">←</button>
+              <button class="nudge-btn" id="nameXPlus">→</button>
+              <span class="nudge-spacer"></span>
+              <input type="number" id="nameXOffset" value="0" />
+            </div>
+            <div class="nudge-axis-row">
+              <span class="nudge-axis-label">Y</span>
+              <button class="nudge-btn" id="nameYMinus">↑</button>
+              <button class="nudge-btn" id="nameYPlus">↓</button>
+              <span class="nudge-spacer"></span>
+              <input type="number" id="nameYOffset" value="0" />
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 3. CERTIFICATE ID -->
+    <div class="panel" id="panelCert">
+      <div class="panel-header" data-panel="panelCert">
+        <span class="dot"></span>Certificate ID<span class="chevron">›</span>
+      </div>
+      <div class="panel-body">
+        <div class="row2">
+          <div>
+            <label class="field-label">Prefix</label>
+            <input type="text" id="certPrefix" value="CERT" placeholder="e.g. CERT" />
+          </div>
+          <div>
+            <label class="field-label">Start Number</label>
+            <input type="number" id="certStart" value="1" min="1" />
+          </div>
+        </div>
+        <div>
+          <label class="field-label">ID Format Preview</label>
+          <input type="text" id="certPreviewField" readonly style="color:var(--accent);cursor:default" />
+        </div>
+        <div>
+          <label class="field-label">Corner Position</label>
+          <div class="corner-grid">
+            <button class="corner-btn" data-corner="top_left">↖ Top Left</button>
+            <button class="corner-btn" data-corner="top_right">↗ Top Right</button>
+            <button class="corner-btn active" data-corner="bottom_left">↙ Bottom Left</button>
+            <button class="corner-btn" data-corner="bottom_right">↘ Bottom Right</button>
+          </div>
+        </div>
+        <div>
+          <label class="field-label">Fine-tune Position</label>
+          <div class="nudge-2d">
+            <div class="nudge-axis-row">
+              <span class="nudge-axis-label">X</span>
+              <button class="nudge-btn" id="certXMinus">←</button>
+              <button class="nudge-btn" id="certXPlus">→</button>
+              <span class="nudge-spacer"></span>
+              <input type="number" id="certXOffset" value="0" />
+            </div>
+            <div class="nudge-axis-row">
+              <span class="nudge-axis-label">Y</span>
+              <button class="nudge-btn" id="certYMinus">↑</button>
+              <button class="nudge-btn" id="certYPlus">↓</button>
+              <span class="nudge-spacer"></span>
+              <input type="number" id="certYOffset" value="0" />
+            </div>
+          </div>
+        </div>
+        <div>
+          <label class="field-label">Font Size &amp; Color</label>
+          <div class="slider-field" style="margin-bottom:6px">
+            <div class="slider-row">
+              <input type="range" id="certFontSizeSlider" min="8" max="200" value="32" />
+              <input type="number" id="certFontSize" value="32" min="8" max="200" />
+            </div>
+          </div>
+          <div class="color-row">
+            <input type="color" id="certColorPicker" value="#ffffff" />
+            <input type="text" id="certColorHex" value="#ffffff" maxlength="7" />
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- 4. GENERATE -->
+    <div class="panel" id="panelGenerate">
+      <div class="panel-header" data-panel="panelGenerate">
+        <span class="dot"></span>Generate<span class="chevron">›</span>
+      </div>
+      <div class="panel-body">
+        <div id="errorMsg" class="msg"></div>
+        <div id="successMsg" class="msg"></div>
+        <div>
+          <label class="field-label">Output Format</label>
+          <div class="format-toggle">
+            <button class="fmt-btn active" data-fmt="png">PNG</button>
+            <button class="fmt-btn" data-fmt="jpg">JPG</button>
+            <button class="fmt-btn" data-fmt="pdf">PDF (A4)</button>
+          </div>
+        </div>
+        <button class="generate-btn" id="generateBtn" style="background:#2a5c3f;border:1px solid #4caf82;color:#a8f0c8;">
+          ⬇ Generate &amp; Download ZIP (PNG)
+        </button>
+        <div class="progress-wrap" id="progressWrap">
+          <div class="progress-bar-bg"><div class="progress-bar-fill" id="progressFill"></div></div>
+          <div class="progress-label" id="progressLabel">Processing…</div>
+        </div>
+      </div>
+    </div>
+
+  </aside>
+
+  <!-- DESKTOP PREVIEW -->
+  <main class="preview-area">
+    <div class="preview-toolbar">
+      <h2>Live Preview <span class="live-dot"></span></h2>
+      <span class="pill" id="previewPill">No data loaded</span>
+      <div class="preview-nav">
+        <button class="nav-btn" id="prevBtn" disabled>← Prev</button>
+        <span class="nav-count" id="navCount">— / —</span>
+        <button class="nav-btn" id="nextBtn" disabled>Next →</button>
+      </div>
+    </div>
+    <div class="canvas-wrap">
+      <div class="empty-preview" id="emptyPreview">
+        <div class="ep-icon">🎓</div>
+        <p>Upload a CSV and template to get started</p>
+        <small>Preview updates live as you adjust sliders</small>
+      </div>
+      <canvas id="previewCanvas" style="display:none"></canvas>
+    </div>
+  </main>
+
+</div>
+
+<!-- ══ COLUMN PICKER MODAL ══ -->
+<div class="modal-backdrop" id="colModal">
+  <div class="modal">
+    <div class="modal-header">
+      <div style="flex:1">
+        <h3>Select Name Columns</h3>
+        <div class="modal-sub" id="colModalSub">Choose which columns contain names</div>
+      </div>
+    </div>
+    <div class="modal-body" id="colModalBody">
+      <!-- rows injected by JS -->
+    </div>
+    <div class="modal-footer">
+      <button class="modal-btn secondary" id="colModalCancel">Cancel</button>
+      <button class="modal-btn primary" id="colModalConfirm">Use Selected Columns →</button>
+    </div>
+  </div>
+</div>
+
+<script>
+// ════════════════════════════
+//  STATE
+// ════════════════════════════
+let names = [];
+let templateImg = null;
+let customNameFont = null;
+let certCorner = "bottom_left";
+let previewIndex = 0;
+let liveTimer = null;
+let outputFormat = "png";
+const NUDGE_PX = 5;
+
+function isMobile() { return window.innerWidth <= 700; }
+
+// ════════════════════════════
+//  COLLAPSIBLE PANELS (mobile)
+// ════════════════════════════
+document.querySelectorAll(".panel-header[data-panel]").forEach(h => {
+  h.addEventListener("click", () => {
+    if (!isMobile()) return;
+    document.getElementById(h.dataset.panel).classList.toggle("collapsed");
+  });
+});
+
+// ════════════════════════════
+//  SLIDER ↔ NUMBER SYNC
+// ════════════════════════════
+const SLIDER_PAIRS = [
+  ["nameFontSizeSlider", "nameFontSize",  "nameFontSizeVal"],
+  ["certFontSizeSlider", "certFontSize",  null],
+];
+function bindSliderPair(sliderId, numberId, valLabelId) {
+  const slider   = document.getElementById(sliderId);
+  const number   = document.getElementById(numberId);
+  const valLabel = valLabelId ? document.getElementById(valLabelId) : null;
+  slider.addEventListener("input", () => {
+    number.value = slider.value;
+    if (valLabel) valLabel.textContent = slider.value;
+    scheduleLivePreview();
+  });
+  number.addEventListener("input", () => {
+    const v = parseFloat(number.value);
+    if (!isNaN(v)) slider.value = Math.min(Math.max(v, parseFloat(slider.min)), parseFloat(slider.max));
+    if (valLabel) valLabel.textContent = number.value;
+    scheduleLivePreview();
+  });
+}
+SLIDER_PAIRS.forEach(([s, n, l]) => bindSliderPair(s, n, l));
+
+// ════════════════════════════
+//  NUDGE BUTTONS (no slider — just number input)
+// ════════════════════════════
+function bindNudge(minusId, plusId, numberId) {
+  const number = document.getElementById(numberId);
+  function nudge(d) {
+    let v = parseInt(number.value) || 0;
+    v += d; number.value = v;
+    scheduleLivePreview();
+  }
+  document.getElementById(minusId).addEventListener("click", () => nudge(-NUDGE_PX));
+  document.getElementById(plusId).addEventListener("click",  () => nudge(+NUDGE_PX));
+  // also trigger preview when user types directly
+  number.addEventListener("input", scheduleLivePreview);
+}
+bindNudge("nameXMinus", "nameXPlus", "nameXOffset");
+bindNudge("nameYMinus", "nameYPlus", "nameYOffset");
+bindNudge("certXMinus", "certXPlus", "certXOffset");
+bindNudge("certYMinus", "certYPlus", "certYOffset");
+
+// ════════════════════════════
+//  LIVE PREVIEW
+// ════════════════════════════
+function scheduleLivePreview() {
+  clearTimeout(liveTimer);
+  liveTimer = setTimeout(() => { if (templateImg && names.length > 0) updatePreview(); }, 80);
+}
+
+// ════════════════════════════
+//  UTILITIES
+// ════════════════════════════
+function smartTitle(n) { return n.split(/\s+/).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(" "); }
+function getFirstName(n) { return n.split(/\s+/)[0].replace(/[^a-zA-Z0-9]/g, ""); }
+function certIdStr(i) {
+  const p = document.getElementById("certPrefix").value.trim() || "CERT";
+  const s = parseInt(document.getElementById("certStart").value) || 1;
+  return `${p}-${String(s + i).padStart(4, "0")}`;
+}
+function updateCertPreview() { document.getElementById("certPreviewField").value = certIdStr(0); }
+
+// ════════════════════════════
+//  CSV PARSING — smart column detection
+// ════════════════════════════
+
+// Parse raw CSV text into array of {header, values[]}
+function parseCSVRaw(text) {
+  // Handles quoted fields with embedded commas/newlines
+  const rows = [];
+  const re = /("(?:[^"]|"")*"|[^,\r\n]*)(,|\r?\n|$)/g;
+  let row = [], match;
+  while ((match = re.exec(text)) !== null) {
+    let val = match[1];
+    if (val.startsWith('"') && val.endsWith('"')) val = val.slice(1,-1).replace(/""/g,'"');
+    row.push(val.trim());
+    if (match[2] !== ',') { rows.push(row); row = []; }
+    if (match[2] === '' || re.lastIndex >= text.length) break;
+  }
+  return rows;
+}
+
+// Extract the name part from a cell — takes everything before the first comma,
+// strips non-name chars, title-cases
+function extractNameFromCell(raw) {
+  if (!raw || !raw.trim()) return null;
+  // If cell contains a comma, treat as "Name, other info" — take first part only
+  let name = raw.includes(',') ? raw.split(',')[0] : raw;
+  name = name.replace(/[^a-zA-Z\s.\-']/g, '').trim();
+  name = name.split(/\s+/).filter(Boolean).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
+  if (name.length < 2 || !/[a-zA-Z]{2}/.test(name)) return null;
+  return name;
+}
+
+// Detect which columns likely contain names:
+// 1. Header contains the word "name" (case-insensitive)
+// 2. Fallback: a simple "name" or "names" exact-match column
+function detectNameColumns(headers) {
+  const nameRe = /name/i;
+  const detected = headers.map((h, i) => ({ i, h })).filter(({ h }) => nameRe.test(h));
+  if (detected.length) return detected.map(d => d.i);
+  // fallback to original simple match
+  return headers.reduce((acc, h, i) => {
+    if (['name','names'].includes(h.toLowerCase().trim())) acc.push(i);
+    return acc;
+  }, []);
+}
+
+// Given rows + chosen column indices, extract all names
+function extractNamesFromColumns(rows, colIndices) {
+  const result = [];
+  for (let r = 1; r < rows.length; r++) {
+    for (const ci of colIndices) {
+      const raw = (rows[r][ci] || '').trim();
+      const name = extractNameFromCell(raw);
+      if (name) result.push(name);
+    }
+  }
+  return result;
+}
+
+// ── Modal state
+let pendingCSVRows = [];
+let pendingHeaders = [];
+
+function openColumnModal(rows, headers, suggestedIndices) {
+  pendingCSVRows = rows;
+  pendingHeaders = headers;
+
+  const body = document.getElementById('colModalBody');
+  body.innerHTML = '';
+
+  // Info notice
+  const notice = document.createElement('div');
+  notice.className = 'modal-notice';
+  notice.innerHTML = `<strong>${rows.length - 1}</strong> rows found. Columns with <em>"name"</em> in the header are pre-selected. Each cell is auto-cleaned — if it contains <em>Name, Branch, Semester</em> style data, only the name is extracted.`;
+  body.appendChild(notice);
+
+  // One checkbox row per column
+  headers.forEach((h, i) => {
+    const sampleVals = rows.slice(1, 4).map(r => (r[i] || '').trim()).filter(Boolean);
+    const sample = sampleVals[0] || '—';
+    const isAuto = suggestedIndices.includes(i);
+
+    const row = document.createElement('label');
+    row.className = 'col-check-row' + (isAuto ? ' selected' : '');
+    row.innerHTML = `
+      <input type="checkbox" ${isAuto ? 'checked' : ''} data-col="${i}" />
+      <div class="col-check-info">
+        <div class="col-check-name">${h || '(unnamed)'}</div>
+        <div class="col-check-sample">e.g. ${sample}</div>
+      </div>
+      ${isAuto ? '<span class="col-check-badge">AUTO</span>' : ''}
+    `;
+    const cb = row.querySelector('input');
+    cb.addEventListener('change', () => row.classList.toggle('selected', cb.checked));
+    body.appendChild(row);
+  });
+
+  document.getElementById('colModalSub').textContent =
+    `${headers.length} columns found — ${suggestedIndices.length} auto-selected`;
+  document.getElementById('colModal').classList.add('open');
+}
+
+function closeColumnModal() {
+  document.getElementById('colModal').classList.remove('open');
+}
+
+document.getElementById('colModalCancel').addEventListener('click', () => {
+  closeColumnModal();
+  // reset upload zone
+  document.getElementById('csvFile').value = '';
+});
+
+document.getElementById('colModalConfirm').addEventListener('click', () => {
+  const checked = [...document.querySelectorAll('#colModalBody input[type=checkbox]:checked')];
+  if (!checked.length) { alert('Please select at least one column.'); return; }
+  const colIndices = checked.map(cb => parseInt(cb.dataset.col));
+  names = extractNamesFromColumns(pendingCSVRows, colIndices);
+  closeColumnModal();
+  if (!names.length) { showError('No valid names found in the selected columns.'); return; }
+  previewIndex = 0;
+  document.getElementById('csvZone').classList.add('done');
+  document.querySelector('#csvZone .uz-label').textContent = `✓ ${names.length} names loaded`;
+  updateStatsBar(); updateCertPreview(); clearMsg(); scheduleLivePreview();
+});
+
+// ════════════════════════════
+//  FONT
+// ════════════════════════════
+function getActiveFontFamily() {
+  if (customNameFont) return customNameFont.family;
+  return document.getElementById("nameFont").value.split(":").slice(1).join(":");
+}
+const loadedGFonts = new Set();
+async function ensureGFont(family) {
+  if (loadedGFonts.has(family)) return;
+  const l = document.createElement("link");
+  l.rel = "stylesheet";
+  l.href = `https://fonts.googleapis.com/css2?family=${encodeURIComponent(family)}&display=swap`;
+  document.head.appendChild(l);
+  await new Promise(r => setTimeout(r, 600));
+  loadedGFonts.add(family);
+}
+
+// ════════════════════════════
+//  CANVAS DRAWING
+// ════════════════════════════
+async function renderCertificate(canvas, name, certId) {
+  const W = templateImg.naturalWidth  || templateImg.width;
+  const H = templateImg.naturalHeight || templateImg.height;
+  canvas.width = W; canvas.height = H;
+  const ctx = canvas.getContext("2d");
+  ctx.drawImage(templateImg, 0, 0, W, H);
+
+  const ff = getActiveFontFamily();
+  const val = document.getElementById("nameFont").value;
+  if (!customNameFont && val.startsWith("gfont:")) await ensureGFont(ff);
+
+  const nameColor   = document.getElementById("nameColorHex").value || "#000000";
+  const certColor   = document.getElementById("certColorHex").value || "#ffffff";
+  const nameXOffset = parseInt(document.getElementById("nameXOffset").value)  || 0;
+  const nameYOffset = parseInt(document.getElementById("nameYOffset").value)  || 0;
+  const certFontSz  = parseInt(document.getElementById("certFontSize").value) || 32;
+  const certXOffset = parseInt(document.getElementById("certXOffset").value)  || 0;
+  const certYOffset = parseInt(document.getElementById("certYOffset").value)  || 0;
+
+  // Name — auto-scale to 85% of template width
+  let fontSize = parseInt(document.getElementById("nameFontSize").value) || 80;
+  const MAX_W = W * 0.85;
+  function mw(sz) { ctx.font = `${sz}px "${ff}"`; return ctx.measureText(name).width; }
+  while (fontSize > 10 && mw(fontSize) > MAX_W) fontSize -= 2;
+  ctx.font = `${fontSize}px "${ff}"`;
+  ctx.fillStyle = nameColor; ctx.textBaseline = "top";
+  const nw = ctx.measureText(name).width;
+  const nm = ctx.measureText(name);
+  const nh = nm.actualBoundingBoxAscent + nm.actualBoundingBoxDescent || fontSize;
+  ctx.fillText(name, (W - nw) / 2 + nameXOffset, (H - nh) / 2 + nameYOffset);
+
+  // Cert ID
+  const MARGIN = 80;
+  ctx.font = `${certFontSz}px sans-serif`;
+  ctx.fillStyle = certColor; ctx.textBaseline = "top";
+  const ct = `Certificate ID: ${certId}`;
+  const cw = ctx.measureText(ct).width;
+  const cm = ctx.measureText(ct);
+  const ch = cm.actualBoundingBoxAscent + cm.actualBoundingBoxDescent || certFontSz;
+  let ax, ay, align;
+  switch (certCorner) {
+    case "bottom_right": ax = W - MARGIN; ay = H - MARGIN - ch; align = "right"; break;
+    case "bottom_left":  ax = MARGIN;     ay = H - MARGIN - ch; align = "left";  break;
+    case "top_right":    ax = W - MARGIN; ay = MARGIN;          align = "right"; break;
+    case "top_left":     ax = MARGIN;     ay = MARGIN;          align = "left";  break;
+  }
+  ctx.fillText(ct, (align === "right" ? ax - cw : ax) + certXOffset, ay + certYOffset);
+}
+
+// ════════════════════════════
+//  PREVIEW (desktop + mobile thumbnail)
+// ════════════════════════════
+async function updatePreview() {
+  clearMsg();
+  if (!templateImg) return showError("Please upload a certificate template.");
+  if (!names.length) return showError("Please upload a CSV with valid names.");
+
+  const name   = names[previewIndex];
+  const certId = certIdStr(previewIndex);
+
+  // Desktop
+  const dc = document.getElementById("previewCanvas");
+  await renderCertificate(dc, name, certId);
+  document.getElementById("emptyPreview").style.display = "none";
+  dc.style.display = "block";
+  document.getElementById("navCount").textContent     = `${previewIndex + 1} / ${names.length}`;
+  document.getElementById("prevBtn").disabled          = previewIndex === 0;
+  document.getElementById("nextBtn").disabled          = previewIndex === names.length - 1;
+  document.getElementById("previewPill").textContent   = `${names.length} name${names.length !== 1 ? "s" : ""} loaded`;
+
+  // Mobile thumbnail (copy from already-rendered desktop canvas)
+  const tc = document.getElementById("mobileThumbnail");
+  tc.width  = dc.width; tc.height = dc.height;
+  tc.getContext("2d").drawImage(dc, 0, 0);
+  document.getElementById("mobileThumbName").textContent   = name;
+  document.getElementById("mobileThumbCount").textContent  = `${previewIndex + 1} / ${names.length}`;
+  document.getElementById("mobileThumbTap").style.display  = "block";
+  document.getElementById("mobilePrevBtn").disabled        = previewIndex === 0;
+  document.getElementById("mobileNextBtn").disabled        = previewIndex === names.length - 1;
+
+  // Refresh lightbox if open
+  if (document.getElementById("lightbox").classList.contains("open")) renderLightbox();
+}
+
+// ════════════════════════════
+//  LIGHTBOX
+// ════════════════════════════
+async function renderLightbox() {
+  const lbc = document.getElementById("lightboxCanvas");
+  await renderCertificate(lbc, names[previewIndex], certIdStr(previewIndex));
+  document.getElementById("lbCount").textContent   = `${previewIndex + 1} / ${names.length}`;
+  document.getElementById("lbPrevBtn").disabled    = previewIndex === 0;
+  document.getElementById("lbNextBtn").disabled    = previewIndex === names.length - 1;
+}
+async function openLightbox() {
+  if (!names.length || !templateImg) return;
+  document.getElementById("lightbox").classList.add("open");
+  await renderLightbox();
+}
+function closeLightbox() { document.getElementById("lightbox").classList.remove("open"); }
+
+document.getElementById("mobileThumbnail").addEventListener("click", openLightbox);
+document.getElementById("lightboxClose").addEventListener("click", closeLightbox);
+document.getElementById("lightbox").addEventListener("click", e => { if (e.target === document.getElementById("lightbox")) closeLightbox(); });
+document.getElementById("lbPrevBtn").addEventListener("click", async () => { previewIndex--; await updatePreview(); });
+document.getElementById("lbNextBtn").addEventListener("click", async () => { previewIndex++; await updatePreview(); });
+
+// Swipe to navigate in lightbox
+(function(){
+  let sx = 0;
+  const c = document.getElementById("lightboxCanvas");
+  c.addEventListener("touchstart", e => { sx = e.touches[0].clientX; }, { passive: true });
+  c.addEventListener("touchend",   async e => {
+    const d = sx - e.changedTouches[0].clientX;
+    if (Math.abs(d) < 40) return;
+    if (d > 0 && previewIndex < names.length - 1) { previewIndex++; await updatePreview(); }
+    if (d < 0 && previewIndex > 0)                { previewIndex--; await updatePreview(); }
+  });
+})();
+
+// ════════════════════════════
+//  GENERATE
+// ════════════════════════════
+async function generateAll() {
+  clearMsg();
+  if (!templateImg) return showError("Please upload a certificate template.");
+  if (!names.length) return showError("Please upload a CSV with valid names.");
+
+  const btn = document.getElementById("generateBtn");
+  const pw  = document.getElementById("progressWrap");
+  const pf  = document.getElementById("progressFill");
+  const pl  = document.getElementById("progressLabel");
+  btn.disabled = true; pw.classList.add("visible");
+
+  const off = document.createElement("canvas");
+
+  if (outputFormat === "pdf") {
+    const { jsPDF } = window.jspdf;
+    const A4W = 297, A4H = 210;
+    const doc = new jsPDF({ orientation: "landscape", unit: "mm", format: "a4" });
+    for (let i = 0; i < names.length; i++) {
+      await renderCertificate(off, names[i], certIdStr(i));
+      const img = off.toDataURL("image/jpeg", 0.95);
+      if (i > 0) doc.addPage();
+      const sc = Math.min(A4W / off.width, A4H / off.height);
+      const dw = off.width * sc, dh = off.height * sc;
+      doc.addImage(img, "JPEG", (A4W - dw) / 2, (A4H - dh) / 2, dw, dh);
+      pf.style.width = Math.round(((i+1)/names.length)*100) + "%";
+      pl.textContent = `Generating ${i+1} / ${names.length} — ${names[i]}`;
+      await new Promise(r => setTimeout(r, 0));
+    }
+    pl.textContent = "Saving PDF…"; doc.save("certificates.pdf");
+  } else {
+    const mime = outputFormat === "jpg" ? "image/jpeg" : "image/png";
+    const ext  = outputFormat === "jpg" ? "jpg" : "png";
+    const q    = outputFormat === "jpg" ? 0.92 : undefined;
+    const zip  = new JSZip();
+    for (let i = 0; i < names.length; i++) {
+      await renderCertificate(off, names[i], certIdStr(i));
+      const blob = await new Promise(res => q !== undefined ? off.toBlob(res, mime, q) : off.toBlob(res, mime));
+      zip.file(`${certIdStr(i)}_${getFirstName(names[i])}.${ext}`, blob);
+      pf.style.width = Math.round(((i+1)/names.length)*100) + "%";
+      pl.textContent = `Generating ${i+1} / ${names.length} — ${names[i]}`;
+      await new Promise(r => setTimeout(r, 0));
+    }
+    pl.textContent = "Compressing ZIP…";
+    const zb = await zip.generateAsync({ type: "blob" });
+    const a = Object.assign(document.createElement("a"), { href: URL.createObjectURL(zb), download: `certificates_${ext}.zip` });
+    a.click(); URL.revokeObjectURL(a.href);
+  }
+
+  pw.classList.remove("visible"); pf.style.width = "0%";
+  btn.disabled = false;
+  showSuccess(`✅ ${names.length} certificates generated and downloaded!`);
+}
+
+// ════════════════════════════
+//  UI HELPERS
+// ════════════════════════════
+function showError(m)   { const e = document.getElementById("errorMsg");   e.textContent = m; e.className = "msg error"; }
+function showSuccess(m) { const e = document.getElementById("successMsg"); e.textContent = m; e.className = "msg success"; }
+function clearMsg()     { document.getElementById("errorMsg").className = "msg"; document.getElementById("successMsg").className = "msg"; }
+function updateStatsBar() {
+  const b = document.getElementById("statsBar");
+  if (!names.length) { b.style.display = "none"; return; }
+  b.style.display = "flex";
+  b.innerHTML = `<div class="stat-chip">👥 <strong>${names.length}</strong> names</div><div class="stat-chip">📄 CSV loaded</div>${templateImg ? '<div class="stat-chip">🖼️ Template ready</div>' : ""}`;
+}
+
+// ════════════════════════════
+//  DRAG AND DROP
+// ════════════════════════════
+function setupDragZone(id) {
+  const z = document.getElementById(id);
+  z.addEventListener("dragover", e => { e.preventDefault(); z.classList.add("drag"); });
+  z.addEventListener("dragleave", () => z.classList.remove("drag"));
+  z.addEventListener("drop", e => {
+    e.preventDefault(); z.classList.remove("drag");
+    const inp = z.querySelector("input[type=file]");
+    if (e.dataTransfer.files.length) {
+      const dt = new DataTransfer(); dt.items.add(e.dataTransfer.files[0]);
+      inp.files = dt.files; inp.dispatchEvent(new Event("change"));
+    }
+  });
+}
+setupDragZone("csvZone"); setupDragZone("templateZone");
+
+// ════════════════════════════
+//  EVENT LISTENERS
+// ════════════════════════════
+document.getElementById("csvFile").addEventListener("change", async e => {
+  const f = e.target.files[0]; if (!f) return;
+  try {
+    const text = await f.text();
+    const rows = parseCSVRaw(text).filter(r => r.some(c => c.trim() !== ''));
+    if (rows.length < 2) throw new Error('CSV has no data rows.');
+    const headers = rows[0];
+    const suggested = detectNameColumns(headers);
+    // If exactly one obvious "name"/"names" column and no complex structure, skip modal
+    const isSimple = suggested.length === 1 &&
+      ['name','names'].includes(headers[suggested[0]].toLowerCase().trim());
+    if (isSimple) {
+      names = extractNamesFromColumns(rows, suggested);
+      if (!names.length) throw new Error('No valid names found.');
+      previewIndex = 0;
+      document.getElementById('csvZone').classList.add('done');
+      document.querySelector('#csvZone .uz-label').textContent = `✓ ${f.name}`;
+      updateStatsBar(); updateCertPreview(); clearMsg(); scheduleLivePreview();
+    } else {
+      // Show column picker so user can confirm/adjust
+      openColumnModal(rows, headers, suggested);
+    }
+  } catch(err) { showError(err.message); }
+});
+
+document.getElementById("templateFile").addEventListener("change", e => {
+  const f = e.target.files[0]; if (!f) return;
+  const img = new Image();
+  img.onload = () => {
+    templateImg = img;
+    document.getElementById("templateZone").classList.add("done");
+    document.querySelector("#templateZone .uz-label").textContent = `✓ ${f.name}`;
+    updateStatsBar(); scheduleLivePreview();
+  };
+  img.src = URL.createObjectURL(f);
+});
+
+document.getElementById("nameFontFile").addEventListener("change", async e => {
+  const f = e.target.files[0]; if (!f) return;
+  const fam = f.name.replace(/\.[^.]+$/, "").replace(/[^a-zA-Z0-9]/g, " ");
+  const ff = new FontFace(fam, `url(${URL.createObjectURL(f)})`);
+  await ff.load(); document.fonts.add(ff); customNameFont = ff;
+  document.getElementById("nameFontName").textContent = f.name;
+  const opt = document.getElementById("uploadedFontOption");
+  opt.value = `uploaded:${fam}`; opt.textContent = `✓ ${fam} (uploaded)`; opt.disabled = false;
+  document.getElementById("nameFont").value = opt.value; scheduleLivePreview();
+});
+
+document.getElementById("nameFont").addEventListener("change", scheduleLivePreview);
+
+function syncColor(pid, hid) {
+  document.getElementById(pid).addEventListener("input", e => { document.getElementById(hid).value = e.target.value; scheduleLivePreview(); });
+  document.getElementById(hid).addEventListener("input", e => { if (/^#[0-9a-fA-F]{6}$/.test(e.target.value)) { document.getElementById(pid).value = e.target.value; scheduleLivePreview(); } });
+}
+syncColor("nameColorPicker","nameColorHex");
+syncColor("certColorPicker","certColorHex");
+
+document.querySelectorAll(".corner-btn").forEach(b => {
+  b.addEventListener("click", () => {
+    document.querySelectorAll(".corner-btn").forEach(x => x.classList.remove("active"));
+    b.classList.add("active"); certCorner = b.dataset.corner; scheduleLivePreview();
+  });
+});
+
+["certPrefix","certStart"].forEach(id => {
+  document.getElementById(id).addEventListener("input", () => { updateCertPreview(); scheduleLivePreview(); });
+});
+
+document.getElementById("generateBtn").addEventListener("click", generateAll);
+
+document.querySelectorAll(".fmt-btn").forEach(b => {
+  b.addEventListener("click", () => {
+    document.querySelectorAll(".fmt-btn").forEach(x => x.classList.remove("active"));
+    b.classList.add("active"); outputFormat = b.dataset.fmt;
+    const labels = { png: "⬇ Generate & Download ZIP (PNG)", jpg: "⬇ Generate & Download ZIP (JPG)", pdf: "⬇ Generate & Download PDF" };
+    document.getElementById("generateBtn").innerHTML = labels[outputFormat];
+  });
+});
+
+document.getElementById("prevBtn").addEventListener("click", () => { previewIndex--; updatePreview(); });
+document.getElementById("nextBtn").addEventListener("click", () => { previewIndex++; updatePreview(); });
+document.getElementById("mobilePrevBtn").addEventListener("click", () => { previewIndex--; updatePreview(); });
+document.getElementById("mobileNextBtn").addEventListener("click", () => { previewIndex++; updatePreview(); });
+
+// Init
+updateCertPreview();
+</script>
+</body>
+</html>
