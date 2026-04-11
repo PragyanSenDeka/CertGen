@@ -7,6 +7,8 @@
 <link href="https://fonts.googleapis.com/css2?family=DM+Serif+Display:ital@0;1&family=DM+Sans:wght@300;400;500;600&display=swap" rel="stylesheet"/>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jszip/3.10.1/jszip.min.js"></script>
 <script src="https://cdnjs.cloudflare.com/ajax/libs/jspdf/2.5.1/jspdf.umd.min.js"></script>
+<!-- SheetJS for XLSX support -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
 <style>
   *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
 
@@ -122,6 +124,13 @@
   .upload-zone .uz-label { font-size: 13px; font-weight: 500; color: var(--text); }
   .upload-zone .uz-sub { font-size: 11px; color: var(--muted); margin-top: 3px; }
   .upload-zone.done { border-color: var(--success); border-style: solid; }
+  .file-type-badge {
+    display: inline-flex; align-items: center; gap: 4px;
+    margin-top: 6px; font-size: 10px; font-weight: 700;
+    letter-spacing: 0.5px; padding: 2px 8px; border-radius: 10px;
+    background: rgba(212,168,67,0.15); color: var(--accent);
+    border: 1px solid rgba(212,168,67,0.3);
+  }
   @media (hover: none) { .upload-zone .uz-sub { display: none; } }
 
   /* ── FORM ELEMENTS ── */
@@ -192,7 +201,7 @@
   }
   .slider-row input[type=number] { width: 68px; flex-shrink: 0; text-align: center; }
 
-  /* ── NUDGE CONTROLS (arrows only, no slider) ── */
+  /* ── NUDGE CONTROLS ── */
   .nudge-2d { display: flex; flex-direction: column; gap: 6px; }
   .nudge-axis-row { display: flex; align-items: center; gap: 8px; }
   .nudge-axis-label {
@@ -285,7 +294,6 @@
   .modal-body { padding: 16px 18px; display: flex; flex-direction: column; gap: 10px; max-height: 55vh; overflow-y: auto; }
   .modal-footer { padding: 14px 18px; border-top: 1px solid var(--border); display: flex; gap: 8px; justify-content: flex-end; }
 
-  /* column checkbox rows */
   .col-check-row {
     display: flex; align-items: flex-start; gap: 10px;
     padding: 10px 12px; border-radius: 8px; cursor: pointer;
@@ -425,7 +433,6 @@
     0%, 100% { opacity: 1; transform: scale(1); }
     50%       { opacity: 0.4; transform: scale(0.7); }
   }
-  /* inline value label (mobile slider readout) */
   .slider-val-label { font-size: 12px; color: var(--accent); min-width: 38px; text-align: right; font-variant-numeric: tabular-nums; }
 
   /* ═══════════════════════════════════════
@@ -441,7 +448,6 @@
     header { padding: 12px 16px; }
     header h1 { font-size: 18px; }
     header .header-badge { display: none; }
-    /* hide number inputs beside font-size slider on mobile — value shown via label */
     .slider-row input[type=number] { display: none; }
   }
 
@@ -455,7 +461,6 @@
 <body>
 
 <header>
-  
   <div class="logo-icon">🏅</div>
   <h1>CertGen</h1>
   <span class="header-badge">GitHub Pages Edition</span>
@@ -503,12 +508,17 @@
       </div>
       <div class="panel-body">
         <div>
-          <label class="field-label">CSV File (Names)</label>
+          <label class="field-label">CSV or Excel File (Names)</label>
           <div class="upload-zone" id="csvZone">
-            <input type="file" id="csvFile" accept=".csv" />
+            <input type="file" id="csvFile" accept=".csv,.xlsx,.xls" />
             <div class="uz-icon">📄</div>
-            <div class="uz-label">Tap to upload CSV</div>
-            <div class="uz-sub">Columns: name / names &nbsp;|&nbsp; email / emails (optional)</div>
+            <div class="uz-label">Tap to upload CSV or Excel</div>
+            <div class="uz-sub">Accepts .csv · .xlsx · .xls</div>
+            <div style="display:flex;gap:5px;margin-top:6px;flex-wrap:wrap;justify-content:center">
+              <span class="file-type-badge">CSV</span>
+              <span class="file-type-badge">XLSX</span>
+              <span class="file-type-badge">XLS</span>
+            </div>
           </div>
         </div>
         <div>
@@ -533,7 +543,6 @@
         <div>
           <label class="field-label">Font</label>
           <select id="nameFont">
-
             <optgroup label="── Serif ──">
               <option value="serif:Georgia">Georgia</option>
               <option value="serif:Palatino Linotype">Palatino Linotype</option>
@@ -543,7 +552,6 @@
               <option value="serif:Didot">Didot</option>
               <option value="serif:Bodoni MT">Bodoni MT</option>
             </optgroup>
-
             <optgroup label="── Sans-Serif ──">
               <option value="sans:Arial">Arial</option>
               <option value="sans:Trebuchet MS">Trebuchet MS</option>
@@ -554,7 +562,6 @@
               <option value="sans:Futura">Futura</option>
               <option value="sans:Optima">Optima</option>
             </optgroup>
-
             <optgroup label="── Google · Serif ──">
               <option value="gfont:DM Serif Display">DM Serif Display</option>
               <option value="gfont:Playfair Display">Playfair Display</option>
@@ -570,7 +577,6 @@
               <option value="gfont:GFS Didot">GFS Didot</option>
               <option value="gfont:Josefin Slab">Josefin Slab</option>
             </optgroup>
-
             <optgroup label="── Google · Sans-Serif ──">
               <option value="gfont:Montserrat">Montserrat</option>
               <option value="gfont:Raleway">Raleway</option>
@@ -587,7 +593,6 @@
               <option value="gfont:Plus Jakarta Sans">Plus Jakarta Sans</option>
               <option value="gfont:DM Sans">DM Sans</option>
             </optgroup>
-
             <optgroup label="── Google · Script / Calligraphy ──">
               <option value="gfont:Great Vibes">Great Vibes</option>
               <option value="gfont:Alex Brush">Alex Brush</option>
@@ -611,7 +616,6 @@
               <option value="gfont:Yellowtail">Yellowtail</option>
               <option value="cursive:cursive">Generic Cursive (system)</option>
             </optgroup>
-
             <optgroup label="── Google · Display / Decorative ──">
               <option value="gfont:Cinzel">Cinzel</option>
               <option value="gfont:Cinzel Decorative">Cinzel Decorative</option>
@@ -625,7 +629,6 @@
               <option value="gfont:Fjalla One">Fjalla One</option>
               <option value="gfont:Bebas Neue">Bebas Neue</option>
             </optgroup>
-
             <optgroup label="── Google · Elegant / Thin ──">
               <option value="gfont:Cormorant">Cormorant</option>
               <option value="gfont:Bodoni Moda">Bodoni Moda</option>
@@ -637,7 +640,6 @@
               <option value="gfont:Lustria">Lustria</option>
               <option value="gfont:Italiana">Italiana</option>
             </optgroup>
-
             <option value="uploaded:__none__" id="uploadedFontOption" disabled>— Upload custom font below —</option>
           </select>
         </div>
@@ -794,7 +796,7 @@
     <div class="canvas-wrap">
       <div class="empty-preview" id="emptyPreview">
         <div class="ep-icon">🎓</div>
-        <p>Upload a CSV and template to get started</p>
+        <p>Upload a CSV / Excel file and template to get started</p>
         <small>Preview updates live as you adjust sliders</small>
       </div>
       <canvas id="previewCanvas" style="display:none"></canvas>
@@ -812,9 +814,7 @@
         <div class="modal-sub" id="colModalSub">Choose which columns contain names</div>
       </div>
     </div>
-    <div class="modal-body" id="colModalBody">
-      <!-- rows injected by JS -->
-    </div>
+    <div class="modal-body" id="colModalBody"></div>
     <div class="modal-footer">
       <button class="modal-btn secondary" id="colModalCancel">Cancel</button>
       <button class="modal-btn primary" id="colModalConfirm">Use Selected Columns →</button>
@@ -851,8 +851,8 @@ document.querySelectorAll(".panel-header[data-panel]").forEach(h => {
 //  SLIDER ↔ NUMBER SYNC
 // ════════════════════════════
 const SLIDER_PAIRS = [
-  ["nameFontSizeSlider", "nameFontSize",  "nameFontSizeVal"],
-  ["certFontSizeSlider", "certFontSize",  null],
+  ["nameFontSizeSlider", "nameFontSize", "nameFontSizeVal"],
+  ["certFontSizeSlider", "certFontSize", null],
 ];
 function bindSliderPair(sliderId, numberId, valLabelId) {
   const slider   = document.getElementById(sliderId);
@@ -873,18 +873,13 @@ function bindSliderPair(sliderId, numberId, valLabelId) {
 SLIDER_PAIRS.forEach(([s, n, l]) => bindSliderPair(s, n, l));
 
 // ════════════════════════════
-//  NUDGE BUTTONS (no slider — just number input)
+//  NUDGE BUTTONS
 // ════════════════════════════
 function bindNudge(minusId, plusId, numberId) {
   const number = document.getElementById(numberId);
-  function nudge(d) {
-    let v = parseInt(number.value) || 0;
-    v += d; number.value = v;
-    scheduleLivePreview();
-  }
+  function nudge(d) { let v = parseInt(number.value) || 0; v += d; number.value = v; scheduleLivePreview(); }
   document.getElementById(minusId).addEventListener("click", () => nudge(-NUDGE_PX));
   document.getElementById(plusId).addEventListener("click",  () => nudge(+NUDGE_PX));
-  // also trigger preview when user types directly
   number.addEventListener("input", scheduleLivePreview);
 }
 bindNudge("nameXMinus", "nameXPlus", "nameXOffset");
@@ -913,12 +908,11 @@ function certIdStr(i) {
 function updateCertPreview() { document.getElementById("certPreviewField").value = certIdStr(0); }
 
 // ════════════════════════════
-//  CSV PARSING — smart column detection
+//  FILE PARSING — CSV + XLSX
 // ════════════════════════════
 
-// Parse raw CSV text into array of {header, values[]}
+// Parse raw CSV text → array of string arrays
 function parseCSVRaw(text) {
-  // Handles quoted fields with embedded commas/newlines
   const rows = [];
   const re = /("(?:[^"]|"")*"|[^,\r\n]*)(,|\r?\n|$)/g;
   let row = [], match;
@@ -932,11 +926,21 @@ function parseCSVRaw(text) {
   return rows;
 }
 
-// Extract the name part from a cell — takes everything before the first comma,
-// strips non-name chars, title-cases
+// Parse XLSX/XLS ArrayBuffer → same format as parseCSVRaw (array of string arrays)
+function parseXLSXRaw(arrayBuffer) {
+  const workbook = XLSX.read(arrayBuffer, { type: 'array' });
+  // Use the first sheet
+  const sheetName = workbook.SheetNames[0];
+  const sheet = workbook.Sheets[sheetName];
+  // Convert to array-of-arrays, with empty cells as empty strings
+  const aoa = XLSX.utils.sheet_to_json(sheet, { header: 1, defval: '' });
+  // Stringify every cell (dates, numbers etc become strings)
+  return aoa.map(row => row.map(cell => String(cell === null || cell === undefined ? '' : cell).trim()));
+}
+
+// Extract name from a cell value
 function extractNameFromCell(raw) {
   if (!raw || !raw.trim()) return null;
-  // If cell contains a comma, treat as "Name, other info" — take first part only
   let name = raw.includes(',') ? raw.split(',')[0] : raw;
   name = name.replace(/[^a-zA-Z\s.\-']/g, '').trim();
   name = name.split(/\s+/).filter(Boolean).map(w => w.charAt(0).toUpperCase() + w.slice(1).toLowerCase()).join(' ');
@@ -944,21 +948,18 @@ function extractNameFromCell(raw) {
   return name;
 }
 
-// Detect which columns likely contain names:
-// 1. Header contains the word "name" (case-insensitive)
-// 2. Fallback: a simple "name" or "names" exact-match column
+// Detect columns likely containing names
 function detectNameColumns(headers) {
   const nameRe = /name/i;
   const detected = headers.map((h, i) => ({ i, h })).filter(({ h }) => nameRe.test(h));
   if (detected.length) return detected.map(d => d.i);
-  // fallback to original simple match
   return headers.reduce((acc, h, i) => {
     if (['name','names'].includes(h.toLowerCase().trim())) acc.push(i);
     return acc;
   }, []);
 }
 
-// Given rows + chosen column indices, extract all names
+// Extract all names given rows + chosen column indices
 function extractNamesFromColumns(rows, colIndices) {
   const result = [];
   for (let r = 1; r < rows.length; r++) {
@@ -971,6 +972,26 @@ function extractNamesFromColumns(rows, colIndices) {
   return result;
 }
 
+// ── Shared handler: process parsed rows regardless of source format
+function processRows(rows, fileName) {
+  rows = rows.filter(r => r.some(c => c.trim() !== ''));
+  if (rows.length < 2) throw new Error('File has no data rows.');
+  const headers = rows[0];
+  const suggested = detectNameColumns(headers);
+  const isSimple = suggested.length === 1 &&
+    ['name','names'].includes(headers[suggested[0]].toLowerCase().trim());
+  if (isSimple) {
+    names = extractNamesFromColumns(rows, suggested);
+    if (!names.length) throw new Error('No valid names found.');
+    previewIndex = 0;
+    document.getElementById('csvZone').classList.add('done');
+    document.querySelector('#csvZone .uz-label').textContent = `✓ ${fileName}`;
+    updateStatsBar(); updateCertPreview(); clearMsg(); scheduleLivePreview();
+  } else {
+    openColumnModal(rows, headers, suggested);
+  }
+}
+
 // ── Modal state
 let pendingCSVRows = [];
 let pendingHeaders = [];
@@ -978,22 +999,16 @@ let pendingHeaders = [];
 function openColumnModal(rows, headers, suggestedIndices) {
   pendingCSVRows = rows;
   pendingHeaders = headers;
-
   const body = document.getElementById('colModalBody');
   body.innerHTML = '';
-
-  // Info notice
   const notice = document.createElement('div');
   notice.className = 'modal-notice';
-  notice.innerHTML = `<strong>${rows.length - 1}</strong> rows found. Columns with <em>"name"</em> in the header are pre-selected. Each cell is auto-cleaned — if it contains <em>Name, Branch, Semester</em> style data, only the name is extracted.`;
+  notice.innerHTML = `<strong>${rows.length - 1}</strong> rows found. Columns with <em>"name"</em> in the header are pre-selected. If a cell contains <em>Name, Branch, Semester</em> style data, only the name is extracted.`;
   body.appendChild(notice);
-
-  // One checkbox row per column
   headers.forEach((h, i) => {
     const sampleVals = rows.slice(1, 4).map(r => (r[i] || '').trim()).filter(Boolean);
     const sample = sampleVals[0] || '—';
     const isAuto = suggestedIndices.includes(i);
-
     const row = document.createElement('label');
     row.className = 'col-check-row' + (isAuto ? ' selected' : '');
     row.innerHTML = `
@@ -1008,19 +1023,15 @@ function openColumnModal(rows, headers, suggestedIndices) {
     cb.addEventListener('change', () => row.classList.toggle('selected', cb.checked));
     body.appendChild(row);
   });
-
   document.getElementById('colModalSub').textContent =
     `${headers.length} columns found — ${suggestedIndices.length} auto-selected`;
   document.getElementById('colModal').classList.add('open');
 }
 
-function closeColumnModal() {
-  document.getElementById('colModal').classList.remove('open');
-}
+function closeColumnModal() { document.getElementById('colModal').classList.remove('open'); }
 
 document.getElementById('colModalCancel').addEventListener('click', () => {
   closeColumnModal();
-  // reset upload zone
   document.getElementById('csvFile').value = '';
 });
 
@@ -1077,7 +1088,6 @@ async function renderCertificate(canvas, name, certId) {
   const certXOffset = parseInt(document.getElementById("certXOffset").value)  || 0;
   const certYOffset = parseInt(document.getElementById("certYOffset").value)  || 0;
 
-  // Name — auto-scale to 85% of template width
   let fontSize = parseInt(document.getElementById("nameFontSize").value) || 80;
   const MAX_W = W * 0.85;
   function mw(sz) { ctx.font = `${sz}px "${ff}"`; return ctx.measureText(name).width; }
@@ -1089,7 +1099,6 @@ async function renderCertificate(canvas, name, certId) {
   const nh = nm.actualBoundingBoxAscent + nm.actualBoundingBoxDescent || fontSize;
   ctx.fillText(name, (W - nw) / 2 + nameXOffset, (H - nh) / 2 + nameYOffset);
 
-  // Cert ID
   const MARGIN = 80;
   ctx.font = `${certFontSz}px sans-serif`;
   ctx.fillStyle = certColor; ctx.textBaseline = "top";
@@ -1108,17 +1117,16 @@ async function renderCertificate(canvas, name, certId) {
 }
 
 // ════════════════════════════
-//  PREVIEW (desktop + mobile thumbnail)
+//  PREVIEW
 // ════════════════════════════
 async function updatePreview() {
   clearMsg();
   if (!templateImg) return showError("Please upload a certificate template.");
-  if (!names.length) return showError("Please upload a CSV with valid names.");
+  if (!names.length) return showError("Please upload a CSV or Excel file with valid names.");
 
   const name   = names[previewIndex];
   const certId = certIdStr(previewIndex);
 
-  // Desktop
   const dc = document.getElementById("previewCanvas");
   await renderCertificate(dc, name, certId);
   document.getElementById("emptyPreview").style.display = "none";
@@ -1128,7 +1136,6 @@ async function updatePreview() {
   document.getElementById("nextBtn").disabled          = previewIndex === names.length - 1;
   document.getElementById("previewPill").textContent   = `${names.length} name${names.length !== 1 ? "s" : ""} loaded`;
 
-  // Mobile thumbnail (copy from already-rendered desktop canvas)
   const tc = document.getElementById("mobileThumbnail");
   tc.width  = dc.width; tc.height = dc.height;
   tc.getContext("2d").drawImage(dc, 0, 0);
@@ -1138,7 +1145,6 @@ async function updatePreview() {
   document.getElementById("mobilePrevBtn").disabled        = previewIndex === 0;
   document.getElementById("mobileNextBtn").disabled        = previewIndex === names.length - 1;
 
-  // Refresh lightbox if open
   if (document.getElementById("lightbox").classList.contains("open")) renderLightbox();
 }
 
@@ -1165,12 +1171,11 @@ document.getElementById("lightbox").addEventListener("click", e => { if (e.targe
 document.getElementById("lbPrevBtn").addEventListener("click", async () => { previewIndex--; await updatePreview(); });
 document.getElementById("lbNextBtn").addEventListener("click", async () => { previewIndex++; await updatePreview(); });
 
-// Swipe to navigate in lightbox
 (function(){
   let sx = 0;
   const c = document.getElementById("lightboxCanvas");
   c.addEventListener("touchstart", e => { sx = e.touches[0].clientX; }, { passive: true });
-  c.addEventListener("touchend",   async e => {
+  c.addEventListener("touchend", async e => {
     const d = sx - e.changedTouches[0].clientX;
     if (Math.abs(d) < 40) return;
     if (d > 0 && previewIndex < names.length - 1) { previewIndex++; await updatePreview(); }
@@ -1184,7 +1189,7 @@ document.getElementById("lbNextBtn").addEventListener("click", async () => { pre
 async function generateAll() {
   clearMsg();
   if (!templateImg) return showError("Please upload a certificate template.");
-  if (!names.length) return showError("Please upload a CSV with valid names.");
+  if (!names.length) return showError("Please upload a CSV or Excel file with valid names.");
 
   const btn = document.getElementById("generateBtn");
   const pw  = document.getElementById("progressWrap");
@@ -1244,7 +1249,7 @@ function updateStatsBar() {
   const b = document.getElementById("statsBar");
   if (!names.length) { b.style.display = "none"; return; }
   b.style.display = "flex";
-  b.innerHTML = `<div class="stat-chip">👥 <strong>${names.length}</strong> names</div><div class="stat-chip">📄 CSV loaded</div>${templateImg ? '<div class="stat-chip">🖼️ Template ready</div>' : ""}`;
+  b.innerHTML = `<div class="stat-chip">👥 <strong>${names.length}</strong> names</div><div class="stat-chip">📄 File loaded</div>${templateImg ? '<div class="stat-chip">🖼️ Template ready</div>' : ""}`;
 }
 
 // ════════════════════════════
@@ -1266,29 +1271,24 @@ function setupDragZone(id) {
 setupDragZone("csvZone"); setupDragZone("templateZone");
 
 // ════════════════════════════
-//  EVENT LISTENERS
+//  FILE INPUT — CSV + XLSX/XLS
 // ════════════════════════════
 document.getElementById("csvFile").addEventListener("change", async e => {
   const f = e.target.files[0]; if (!f) return;
+  const ext = f.name.split('.').pop().toLowerCase();
   try {
-    const text = await f.text();
-    const rows = parseCSVRaw(text).filter(r => r.some(c => c.trim() !== ''));
-    if (rows.length < 2) throw new Error('CSV has no data rows.');
-    const headers = rows[0];
-    const suggested = detectNameColumns(headers);
-    // If exactly one obvious "name"/"names" column and no complex structure, skip modal
-    const isSimple = suggested.length === 1 &&
-      ['name','names'].includes(headers[suggested[0]].toLowerCase().trim());
-    if (isSimple) {
-      names = extractNamesFromColumns(rows, suggested);
-      if (!names.length) throw new Error('No valid names found.');
-      previewIndex = 0;
-      document.getElementById('csvZone').classList.add('done');
-      document.querySelector('#csvZone .uz-label').textContent = `✓ ${f.name}`;
-      updateStatsBar(); updateCertPreview(); clearMsg(); scheduleLivePreview();
+    if (ext === 'csv') {
+      // ── CSV path (text-based) ──
+      const text = await f.text();
+      const rows = parseCSVRaw(text);
+      processRows(rows, f.name);
+    } else if (ext === 'xlsx' || ext === 'xls') {
+      // ── Excel path (binary ArrayBuffer via SheetJS) ──
+      const buffer = await f.arrayBuffer();
+      const rows = parseXLSXRaw(buffer);
+      processRows(rows, f.name);
     } else {
-      // Show column picker so user can confirm/adjust
-      openColumnModal(rows, headers, suggested);
+      throw new Error('Unsupported file type. Please upload a .csv, .xlsx, or .xls file.');
     }
   } catch(err) { showError(err.message); }
 });
@@ -1317,7 +1317,6 @@ document.getElementById("nameFontFile").addEventListener("change", async e => {
 });
 
 document.getElementById("nameFont").addEventListener("change", () => {
-  // Clear custom font when user picks a built-in option
   const val = document.getElementById("nameFont").value;
   if (!val.startsWith("uploaded:")) customNameFont = null;
   scheduleLivePreview();
@@ -1357,7 +1356,6 @@ document.getElementById("nextBtn").addEventListener("click", () => { previewInde
 document.getElementById("mobilePrevBtn").addEventListener("click", () => { previewIndex--; updatePreview(); });
 document.getElementById("mobileNextBtn").addEventListener("click", () => { previewIndex++; updatePreview(); });
 
-// Init
 updateCertPreview();
 </script>
 </body>
