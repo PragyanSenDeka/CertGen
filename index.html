@@ -148,6 +148,7 @@
   }
   input[type=text]:focus, input[type=number]:focus, select:focus { border-color: var(--accent); }
   select option { background: var(--surface2); }
+  select optgroup { background: var(--surface2); color: var(--muted); }
   .row2 { display: grid; grid-template-columns: 1fr 1fr; gap: 10px; }
 
   /* ── COLOR ── */
@@ -543,6 +544,21 @@
         <div>
           <label class="field-label">Font</label>
           <select id="nameFont">
+
+            <!-- ══ RECOMMENDED ══ -->
+            <optgroup label="⭐ Recommended">
+              <option value="gfont:EB Garamond"        style="color:#d4a843">✦ Garamond (EB Garamond)</option>
+              <option value="gfont:Libre Baskerville"  style="color:#d4a843">✦ Baskerville (Libre Baskerville)</option>
+              <option value="gfont:Great Vibes"        style="color:#d4a843">✦ Great Vibes — Script</option>
+              <option value="gfont:Alex Brush"         style="color:#d4a843">✦ Alex Brush — Script</option>
+              <option value="gfont:Pinyon Script"      style="color:#d4a843">✦ Pinyon Script — Script</option>
+              <option value="gfont:Mr De Haviland"     style="color:#d4a843">✦ Edwardian Style (Mr De Haviland)</option>
+              <option value="gfont:Montserrat"         style="color:#d4a843">✦ Montserrat — Sans-serif</option>
+              <option value="sans:Futura"              style="color:#d4a843">✦ Futura — Sans-serif</option>
+              <option value="sans:Arial"               style="color:#d4a843">✦ Arial — Sans-serif</option>
+              <option value="gfont:UnifrakturMaguntia" style="color:#d4a843">✦ Blackletter / Fraktur</option>
+            </optgroup>
+
             <optgroup label="── Serif ──">
               <option value="serif:Georgia">Georgia</option>
               <option value="serif:Palatino Linotype">Palatino Linotype</option>
@@ -639,6 +655,10 @@
               <option value="gfont:Forum">Forum</option>
               <option value="gfont:Lustria">Lustria</option>
               <option value="gfont:Italiana">Italiana</option>
+            </optgroup>
+            <optgroup label="── Google · Blackletter / Fraktur ──">
+              <option value="gfont:UnifrakturMaguntia">UnifrakturMaguntia (Fraktur)</option>
+              <option value="gfont:MedievalSharp">MedievalSharp</option>
             </optgroup>
             <option value="uploaded:__none__" id="uploadedFontOption" disabled>— Upload custom font below —</option>
           </select>
