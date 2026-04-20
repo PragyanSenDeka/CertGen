@@ -711,10 +711,10 @@
       </div>
     </div>
 
-    <!-- 3. CERTIFICATE ID -->
+    <!-- 3. CERTIFICATE ID or Member ID -->
     <div class="panel" id="panelCert">
       <div class="panel-header" data-panel="panelCert">
-        <span class="dot"></span>Certificate ID<span class="chevron">›</span>
+        <span class="dot"></span>Certificate ID / Member ID<span class="chevron">›</span>
       </div>
       <div class="panel-body">
         <div class="row2">
@@ -1123,7 +1123,7 @@ async function renderCertificate(canvas, name, certId) {
   const MARGIN = 80;
   ctx.font = `${certFontSz}px sans-serif`;
   ctx.fillStyle = certColor; ctx.textBaseline = "top";
-  const ct = `Certificate ID: ${certId}`;
+  const ct = `${certId}`;
   const cw = ctx.measureText(ct).width;
   const cm = ctx.measureText(ct);
   const ch = cm.actualBoundingBoxAscent + cm.actualBoundingBoxDescent || certFontSz;
